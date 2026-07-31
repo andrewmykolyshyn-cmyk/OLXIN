@@ -150,7 +150,7 @@ export default function PublishPage() {
         </div>
 
         <div className="form-group">
-          <label>{t('publish.photos)}</label>
+          <label>{t('publish.photos')}</label>
           <PhotoUploader photos={photos} onChange={setPhotos} t={t} />
         </div>
 
