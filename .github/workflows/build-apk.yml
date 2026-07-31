@@ -22,6 +22,9 @@ jobs:
 
       - name: Build web app
         run: npm run build
+        env:
+         VITE_SUPABASE_URL: https://iftomswajzrtqmptkjpn.supabase.co
+         VITE_SUPABASE_ANON_KEY: sb_publishable_ez7Ep1FzaHiZFX8DvUCsug_9ub2tPfH
 
       - name: Copy web build into Android assets
         run: |
