@@ -14,18 +14,3 @@ export default defineConfig({
   base: './',
   build: { outDir: 'dist', sourcemap: true },
 })
-  server: {
-    port: 5173,
-    proxy: {
-      '/api': {
-        target: 'http://localhost:4242',
-        changeOrigin: true,
-        secure: false,
-      },
-    },
-  },
-  build: {
-    outDir: 'dist',
-    sourcemap: true,
-  },
-})
