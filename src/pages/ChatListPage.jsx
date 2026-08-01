@@ -12,6 +12,10 @@ import EmptyState from '@/components/EmptyState';
 import { showToast } from '@/components/Toast';
 import { timeAgo } from '@/lib/format';
 
+function orDefault(value, fallback) {
+  return value ? value : fallback;
+}
+
 export default function ChatListPage() {
   const navigate = useNavigate();
   const { user, isAdmin } = useAuth();
@@ -48,14 +52,19 @@ export default function ChatListPage() {
   const conversationLabel = (c) => {
     if (c.is_support) {
       if (isAdmin && c.buyer_id !== user.id) {
-        return '🛟 ' + ((c.buyer && c.buyer.name) || 'Usuario');
+        const buyerName = c.buyer ? c.buyer.name : null;
+        return '🛟 ' + orDefault(buyerName, 'Usuario');
       }
       return '🛟 ' + t('chat.support');
     }
-    const otherName = c.buyer_id === user.id
-      ? (c.seller && c.seller.name)
-      : (c.buyer && c.buyer.name);
-    return (otherName  'Usuario') + ' - ' + ((c.listing && c.listing.title)  '');
+    let otherName = null;
+    if (c.buyer_id === user.id) {
+      otherName = c.seller ? c.seller.name : null;
+    } else {
+      otherName = c.buyer ? c.buyer.name : null;
+    }
+    const listingTitle = c.listing ? c.listing.title : '';
+    return orDefault(otherName, 'Usuario') + ' - ' + listingTitle;
   };
 
   if (loading) {
@@ -92,12 +101,9 @@ export default function ChatListPage() {
               onClick={() => navigate('/chat/' + c.id)}
             >
               <div className="chat-list-title">{conversationLabel(c)}</div>
-              <div className="chat-list-preview">{c.last_message || t('chat.noMessages')}</div>
+              <div className="chat-list-preview">{orDefault(c.last_message, t('chat.noMessages'))}</div>
               <div className="chat-list-time">{timeAgo(c.last_message_at, lang)}</div>
             </div>
           ))}
         </div>
       )}
-    </div>
-  );
-}
