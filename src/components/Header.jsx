@@ -47,7 +47,6 @@ export default function Header({ favoritesCount }) {
   const handleNav = (path) => {
   navigate(path);
 };
-  };
 
   const handleLangChange = (e) => {
     setLang(e.target.value);
