@@ -13,7 +13,7 @@ import './styles.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <BrowserRouter>
+    <HashRouter>
       <I18nProvider>
         <AuthProvider>
           <ThemeProvider>
@@ -21,6 +21,6 @@ ReactDOM.createRoot(document.getElementById('root')).render(
           </ThemeProvider>
         </AuthProvider>
       </I18nProvider>
-    </BrowserRouter>
+    </HashRouter>
   </React.StrictMode>
 );
