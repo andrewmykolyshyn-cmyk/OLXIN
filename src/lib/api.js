@@ -97,12 +97,12 @@ export async function sendMessage(conversationId, content) {
 
 export function subscribeToMessages(conversationId, onInsert) {
   const channel = supabase
-    .channel(messages-${conversationId})
+    .channel('messages-' + conversationId)
     .on('postgres_changes', {
       event: 'INSERT',
       schema: 'public',
       table: 'messages',
-      filter: conversation_id=eq.${conversationId},
+      filter: 'conversation_id=eq.' + conversationId,
     }, (payload) => onInsert(payload.new))
     .subscribe();
 
