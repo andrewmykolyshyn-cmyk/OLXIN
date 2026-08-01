@@ -39,7 +39,7 @@ export default function ChatListPage() {
   const handleSupport = async () => {
     try {
       const id = await getOrCreateSupportConversation();
-      navigate(/chat/${id});
+      navigate('/chat/' + id);
     } catch (err) {
       showToast(t('errors.generic'), 'error');
     }
@@ -47,12 +47,15 @@ export default function ChatListPage() {
 
   const conversationLabel = (c) => {
     if (c.is_support) {
-      return isAdmin && c.buyer_id !== user.id
-        ? 🛟 ${c.buyer?.name || 'Usuario'}
-        : 🛟 ${t('chat.support')};
+      if (isAdmin && c.buyer_id !== user.id) {
+        return '🛟 ' + ((c.buyer && c.buyer.name) || 'Usuario');
+      }
+      return '🛟 ' + t('chat.support');
     }
-    const otherName = c.buyer_id === user.id ? c.seller?.name : c.buyer?.name;
-    return ${otherName || 'Usuario'} · ${c.listing?.title || ''};
+    const otherName = c.buyer_id === user.id
+      ? (c.seller && c.seller.name)
+      : (c.buyer && c.buyer.name);
+    return (otherName  'Usuario') + ' - ' + ((c.listing && c.listing.title)  '');
   };
 
   if (loading) {
@@ -86,7 +89,7 @@ export default function ChatListPage() {
             <div
               key={c.id}
               className="chat-list-item card hoverable"
-              onClick={() => navigate(/chat/${c.id})}
+              onClick={() => navigate('/chat/' + c.id)}
             >
               <div className="chat-list-title">{conversationLabel(c)}</div>
               <div className="chat-list-preview">{c.last_message || t('chat.noMessages')}</div>
