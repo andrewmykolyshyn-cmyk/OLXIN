@@ -44,6 +44,15 @@ export const STRINGS = {
   // Trust tiles
   // --------------------------------------------------------
   trust: {
+    chat: {
+    support:        { es: 'Soporte OLXIN',       en: 'OLXIN Support',      ca: 'Suport OLXIN',        uk: 'Підтримка OLXIN',        ru: 'Поддержка OLXIN' },
+    contactSupport: { es: 'Contactar soporte',   en: 'Contact support',   ca: 'Contactar suport',    uk: 'Написати в підтримку',   ru: 'Написать в поддержку' },
+    emptyTitle:     { es: 'No tienes chats',     en: 'No chats yet',      ca: 'No tens xats',        uk: 'У вас ще немає чатів',   ru: 'У вас ещё нет чатов' },
+    emptyMessage:   { es: 'Cuando contactes con un vendedor o soporte, aparecera aqui.', en: 'When you contact a seller or support, it will appear here.', ca: 'Quan contactis amb un venedor o suport, apareixera aqui.', uk: 'Коли ви напишете продавцю або в підтримку, чат з\u2019явиться тут.', ru: 'Когда вы напишете продавцу или в поддержку, чат появится здесь.' },
+    noMessages:     { es: 'Aun no hay mensajes', en: 'No messages yet',   ca: 'Encara no hi ha missatges', uk: 'Повідомлень ще немає', ru: 'Сообщений пока нет' },
+    placeholder:    { es: 'Escribe un mensaje...', en: 'Type a message...', ca: 'Escriu un missatge...', uk: 'Напишіть повідомлення...', ru: 'Напишите сообщение...' },
+    send:           { es: 'Enviar',              en: 'Send',               ca: 'Enviar',              uk: 'Надіслати',              ru: 'Отправить' },
+  },
     chat:      { es: 'Chat integrado',      en: 'Built-in chat',      ca: 'Xat integrat',           uk: 'Вбудований чат',       ru: 'Встроенный чат' },
     shipping:  { es: 'OLXIN Envio',         en: 'OLXIN Shipping',     ca: 'OLXIN Enviament',       uk: 'OLXIN Доставка',        ru: 'OLXIN Доставка' },
     shippingDesc: { es: 'Correos, SEUR, MRW', en: 'Correos, SEUR, MRW', ca: 'Correos, SEUR, MRW', uk: 'Correos, SEUR, MRW',    ru: 'Correos, SEUR, MRW' },
