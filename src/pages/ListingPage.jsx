@@ -109,7 +109,7 @@ export default function ListingPage({ favorites, onToggleFavorite }) {
   if (isOwner) return;
   try {
     const convId = await getOrCreateListingConversation(listing.id, listing.seller_id);
-    navigate(/chat/${convId});
+    navigate('/chat/' + convId);
   } catch (err) {
     showToast(t('errors.generic'), 'error');
   }
