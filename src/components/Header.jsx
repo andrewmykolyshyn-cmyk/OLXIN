@@ -45,11 +45,8 @@ export default function Header({ favoritesCount }) {
   };
 
   const handleNav = (path) => {
-    if (path === '/chat') {
-      showToast(t('comingSoon'));
-      return;
-    }
-    navigate(path);
+  navigate(path);
+};
   };
 
   const handleLangChange = (e) => {
