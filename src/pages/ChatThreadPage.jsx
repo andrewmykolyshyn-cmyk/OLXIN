@@ -29,10 +29,8 @@ export default function ChatThreadPage() {
     async function load() {
       try {
         setLoading(true);
-        const [conv, msgs] = await Promise.all([
-          getConversation(id),
-          getMessages(id),
-        ]);
+        const conv = await getConversation(id);
+        const msgs = await getMessages(id);
         setConversation(conv);
         setMessages(msgs);
         unsubscribe = subscribeToMessages(id, (newMsg) => {
@@ -52,7 +50,9 @@ export default function ChatThreadPage() {
   }, [id]);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (bottomRef.current) {
+      bottomRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
   }, [messages]);
 
   const handleSend = async (e) => {
@@ -81,17 +81,27 @@ export default function ChatThreadPage() {
 
   if (!conversation) return null;
 
-  const title = conversation.is_support
-    ? (isAdmin && conversation.buyer_id !== user.id
-        ? conversation.buyer?.name || 'Usuario'
-        : t('chat.support'))
-    : ${conversation.buyer_id === user.id ? conversation.seller?.name : conversation.buyer?.name || 'Usuario'}${conversation.listing ? ' · ' + conversation.listing.title : ''};
+  let title;
+  if (conversation.is_support) {
+    if (isAdmin && conversation.buyer_id !== user.id) {
+      title = (conversation.buyer && conversation.buyer.name) || 'Usuario';
+    } else {
+      title = t('chat.support');
+    }
+  } else {
+    const otherName = conversation.buyer_id === user.id
+      ? (conversation.seller && conversation.seller.name)
+      : (conversation.buyer && conversation.buyer.name);
+    title = (otherName || 'Usuario') + (conversation.listing ? ' - ' + conversation.listing.title : '');
+  }
+
+  const headerTitle = conversation.is_support ? ('🛟 ' + title) : title;
 
   return (
     <div className="container chat-thread-page">
       <div className="chat-thread-header">
         <button className="btn ghost" onClick={() => navigate('/chat')}>←</button>
-        <strong>{conversation.is_support ? 🛟 ${title} : title}</strong>
+        <strong>{headerTitle}</strong>
       </div>
 
       <div className="chat-messages">
@@ -100,28 +110,5 @@ export default function ChatThreadPage() {
             {t('chat.noMessages')}
           </p>
         )}
-        {messages.map((m) => (
-          <div
-            key={m.id}
-            className={chat-bubble ${m.sender_id === user.id ? 'mine' : 'theirs'}}
-          >
-            {m.content}
-          </div>
-        ))}
-        <div ref={bottomRef} />
-      </div>
-
-      <form className="chat-input-row" onSubmit={handleSend}>
-        <input
-          type="text"
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          placeholder={t('chat.placeholder')}
-        />
-        <button className="btn primary" type="submit" disabled={sending || !text.trim()}>
-          {t('chat.send')}
-        </button>
-      </form>
-    </div>
-  );
-}
+        {messages.map((m) => {
+          const bubbleClass = 'chat-bubble ' + (m
