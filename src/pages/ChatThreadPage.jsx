@@ -10,6 +10,10 @@ import { useT } from '@/i18n/i18n';
 import { getConversation, getMessages, sendMessage, subscribeToMessages } from '@/lib/api';
 import { showToast } from '@/components/Toast';
 
+function orDefault(value, fallback) {
+  return value ? value : fallback;
+}
+
 export default function ChatThreadPage() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -24,7 +28,7 @@ export default function ChatThreadPage() {
   const bottomRef = useRef(null);
 
   useEffect(() => {
-    let unsubscribe = () => {};
+    let unsubscribe = function () {};
 
     async function load() {
       try {
@@ -33,8 +37,10 @@ export default function ChatThreadPage() {
         const msgs = await getMessages(id);
         setConversation(conv);
         setMessages(msgs);
-        unsubscribe = subscribeToMessages(id, (newMsg) => {
-          setMessages((prev) => [...prev, newMsg]);
+        unsubscribe = subscribeToMessages(id, function (newMsg) {
+          setMessages(function (prev) {
+            return prev.concat([newMsg]);
+          });
         });
       } catch (err) {
         console.error(err);
@@ -46,7 +52,9 @@ export default function ChatThreadPage() {
     }
     load();
 
-    return () => unsubscribe();
+    return function () {
+      unsubscribe();
+    };
   }, [id]);
 
   useEffect(() => {
@@ -58,7 +66,8 @@ export default function ChatThreadPage() {
   const handleSend = async (e) => {
     e.preventDefault();
     const content = text.trim();
-    if (!content || sending) return;
+    if (!content) return;
+    if (sending) return;
 
     setSending(true);
     setText('');
@@ -84,15 +93,20 @@ export default function ChatThreadPage() {
   let title;
   if (conversation.is_support) {
     if (isAdmin && conversation.buyer_id !== user.id) {
-      title = (conversation.buyer && conversation.buyer.name) || 'Usuario';
+      const buyerName = conversation.buyer ? conversation.buyer.name : null;
+      title = orDefault(buyerName, 'Usuario');
     } else {
       title = t('chat.support');
     }
   } else {
-    const otherName = conversation.buyer_id === user.id
-      ? (conversation.seller && conversation.seller.name)
-      : (conversation.buyer && conversation.buyer.name);
-    title = (otherName || 'Usuario') + (conversation.listing ? ' - ' + conversation.listing.title : '');
+    let otherName = null;
+    if (conversation.buyer_id === user.id) {
+      otherName = conversation.seller ? conversation.seller.name : null;
+    } else {
+      otherName = conversation.buyer ? conversation.buyer.name : null;
+    }
+    const listingPart = conversation.listing ? (' - ' + conversation.listing.title) : '';
+    title = orDefault(otherName, 'Usuario') + listingPart;
   }
 
   const headerTitle = conversation.is_support ? ('🛟 ' + title) : title;
@@ -100,7 +114,7 @@ export default function ChatThreadPage() {
   return (
     <div className="container chat-thread-page">
       <div className="chat-thread-header">
-        <button className="btn ghost" onClick={() => navigate('/chat')}>←</button>
+        <button className="btn ghost" onClick={function () { navigate('/chat'); }}>←</button>
         <strong>{headerTitle}</strong>
       </div>
 
@@ -110,5 +124,28 @@ export default function ChatThreadPage() {
             {t('chat.noMessages')}
           </p>
         )}
-        {messages.map((m) => {
-          const bubbleClass = 'chat-bubble ' + (m
+        {messages.map(function (m) {
+          const isMine = m.sender_id === user.id;
+          const bubbleClass = isMine ? 'chat-bubble mine' : 'chat-bubble theirs';
+          return (
+            <div key={m.id} className={bubbleClass}>
+              {m.content}
+            </div>
+          );
+        })}
+        <div ref={bottomRef} />
+      </div>
+      <form className="chat-input-row" onSubmit={handleSend}>
+        <input
+          type="text"
+          value={text}
+          onChange={function (e) { setText(e.target.value); }}
+          placeholder={t('chat.placeholder')}
+        />
+        <button className="btn primary" type="submit" disabled={sending ? true : !text.trim()}>
+          {t('chat.send')}
+        </button>
+      </form>
+    </div>
+  );
+}
