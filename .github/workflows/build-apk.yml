@@ -26,6 +26,9 @@ jobs:
          VITE_SUPABASE_URL: https://iftomswajzrtqmptkjpn.supabase.co
          VITE_SUPABASE_ANON_KEY: sb_publishable_ez7Ep1FzaHiZFX8DvUCsug_9ub2tPfH
 
+      - name: Strip crossorigin attribute (fixes file:// CORS in WebView)
+        run: sed -i 's/ crossorigin//g' dist/index.html
+
       - name: Copy web build into Android assets
         run: |
           rm -rf android/app/src/main/assets/www
