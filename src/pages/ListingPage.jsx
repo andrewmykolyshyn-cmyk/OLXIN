@@ -7,7 +7,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { useT } from '@/i18n/i18n';
-import { getListing, bumpViews, getRatings, upsertRating, getListings, deleteListing } from '@/lib/api';
+import { getListing, bumpViews, getRatings, upsertRating, getListings, deleteListing, getOrCreateListingConversation } from '@/lib/api';
 import { formatPrice, timeAgo } from '@/lib/format';
 import StarRating from '@/components/StarRating';
 import ListingGrid from '@/components/ListingGrid';
@@ -104,7 +104,16 @@ export default function ListingPage({ favorites, onToggleFavorite }) {
     }
   };
 
-  const handleContact = () => showToast(t('comingSoon'));
+  const handleContact = async () => {
+  if (!user) { navigate('/auth'); return; }
+  if (isOwner) return;
+  try {
+    const convId = await getOrCreateListingConversation(listing.id, listing.seller_id);
+    navigate(/chat/${convId});
+  } catch (err) {
+    showToast(t('errors.generic'), 'error');
+  }
+};
   const handleShowPhone = () => showToast('📞 600 000 000');
 
   const avgStars = ratings.length
