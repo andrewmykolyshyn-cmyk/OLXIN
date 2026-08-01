@@ -12,7 +12,8 @@ import Footer from '@/components/Footer';
 import Toast from '@/components/Toast';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { getCategories } from '@/lib/api';
-
+import ChatListPage from '@/pages/ChatListPage';
+import ChatThreadPage from '@/pages/ChatThreadPage';
 // Pages
 import HomePage from '@/pages/HomePage';
 import ResultsPage from '@/pages/ResultsPage';
@@ -89,6 +90,8 @@ export default function App() {
           <Route path="/auth" element={<AuthPage />} />
           <Route path="/admin" element={<ProtectedRoute adminOnly><AdminPage categories={categories} /></ProtectedRoute>} />
           <Route path="*" element={<NotFoundPage />} />
+          <Route path="/chat" element={<ProtectedRoute><ChatListPage /></ProtectedRoute>} />
+<Route path="/chat/:id" element={<ProtectedRoute><ChatThreadPage /></ProtectedRoute>} />
         </Routes>
       </main>
 
