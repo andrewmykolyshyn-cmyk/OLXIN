@@ -1,217 +1,119 @@
 -- ============================================================
--- OLXIN Database Schema
--- Run this in the Supabase SQL Editor (new query)
+-- OLXIN Chat Schema (migration)
+-- Run this in the Supabase SQL Editor AFTER schema.sql.
+-- Adds the conversations + messages tables that the chat UI
+-- (ChatListPage / ChatThreadPage / lib/api.js) already expects
+-- but that were never created in the database.
 -- ============================================================
 
 -- --------------------------------------------------------
--- 1. Profiles (extends auth.users)
+-- 1. Conversations
 -- --------------------------------------------------------
-create table if not exists public.profiles (
-  id uuid primary key references auth.users(id) on delete cascade,
-  name text not null default 'Usuario',
-  is_pro boolean not null default false,
+create table if not exists public.conversations (
+  id bigint generated always as identity primary key,
+  listing_id bigint references public.listings(id) on delete cascade,
+  buyer_id uuid not null references public.profiles(id) on delete cascade,
+  seller_id uuid references public.profiles(id) on delete cascade,
+  is_support boolean not null default false,
+  last_message text,
+  last_message_at timestamptz default now(),
   created_at timestamptz default now()
 );
 
--- Trigger: auto-create profile on signup
--- Assumption: user_metadata contains 'name' or falls back to email prefix
--- The application also handles this client-side as backup
+-- One conversation per (listing, buyer) pair
+create unique index if not exists conversations_listing_buyer_unique
+  on public.conversations (listing_id, buyer_id)
+  where listing_id is not null;
+
+-- One support conversation per buyer
+create unique index if not exists conversations_support_buyer_unique
+  on public.conversations (buyer_id)
+  where is_support = true;
+
+create index if not exists conversations_buyer_idx on public.conversations (buyer_id);
+create index if not exists conversations_seller_idx on public.conversations (seller_id);
 
 -- --------------------------------------------------------
--- 2. Listings
+-- 2. Messages
 -- --------------------------------------------------------
-create table if not exists public.listings (
+create table if not exists public.messages (
   id bigint generated always as identity primary key,
-  seller_id uuid not null references public.profiles(id) on delete cascade,
-  cat text not null,
-  title text not null,
-  description text default '',
-  price integer not null default 0,
-  city text default 'Alicante',
-  badge text default '' check (badge in ('', 'vip', 'destacado', 'free')),
-  envio boolean default true,
-  photos text[] default '{}',
-  views integer default 0,
-  status text default 'pending' check (status in ('pending', 'active')),
-  payment_id text,
+  conversation_id bigint not null references public.conversations(id) on delete cascade,
+  sender_id uuid not null references public.profiles(id) on delete cascade,
+  content text not null,
   created_at timestamptz default now()
 );
 
--- Indexes for fast lookups
--- Assumption: common queries filter by category or seller
--- Assumption: active listings need fast category lookup for browsing
+create index if not exists messages_conversation_idx on public.messages (conversation_id, created_at);
 
 -- --------------------------------------------------------
--- 3. Ratings
+-- 3. RLS Policies
 -- --------------------------------------------------------
-create table if not exists public.ratings (
-  id bigint generated always as identity primary key,
-  seller_id uuid not null references public.profiles(id),
-  rater_id uuid not null references public.profiles(id),
-  stars integer not null check (stars between 1 and 5),
-  comment text default '',
-  created_at timestamptz default now(),
-  unique(seller_id, rater_id)
-);
+alter table public.conversations enable row level security;
+alter table public.messages enable row level security;
 
--- One rating per user per seller (upsert to update)
+-- Conversations: participants can see their own; admins can see all
+-- support conversations (so staff can answer any user, matching the
+-- isAdmin logic already in ChatListPage/ChatThreadPage).
+create policy "conversations_select_participant_or_admin"
+  on public.conversations for select
+  using (
+    auth.uid() = buyer_id
+    or auth.uid() = seller_id
+    or (is_support and public.is_admin())
+  );
 
--- --------------------------------------------------------
--- 4. Site Settings (single-row config)
--- --------------------------------------------------------
-create table if not exists public.site_settings (
-  id integer primary key default 1 check (id = 1),
-  name text default 'OLXIN',
-  color text default '#002f34',
-  fee_cents integer default 100,
-  categories jsonb default '[]'
-);
+create policy "conversations_insert_own"
+  on public.conversations for insert
+  with check (auth.uid() = buyer_id);
 
--- Ensure single row exists
--- Assumption: seed.sql will insert the default row
+-- Needed so sendMessage() can bump last_message / last_message_at,
+-- and so admins can "claim" a support conversation.
+create policy "conversations_update_participant_or_admin"
+  on public.conversations for update
+  using (
+    auth.uid() = buyer_id
+    or auth.uid() = seller_id
+    or (is_support and public.is_admin())
+  );
 
--- --------------------------------------------------------
--- 5. Admins (email allow-list for admin access)
--- --------------------------------------------------------
-create table if not exists public.admins (
-  email text primary key
-);
+-- Messages: readable/writable only by conversation participants
+-- (or an admin, for support conversations).
+create policy "messages_select_participant_or_admin"
+  on public.messages for select
+  using (
+    exists (
+      select 1 from public.conversations c
+      where c.id = conversation_id
+        and (
+          auth.uid() = c.buyer_id
+          or auth.uid() = c.seller_id
+          or (c.is_support and public.is_admin())
+        )
+    )
+  );
 
--- --------------------------------------------------------
--- 6. View: seller_ratings
--- --------------------------------------------------------
-create or replace view public.seller_ratings as
-select
-  seller_id,
-  round(avg(stars)::numeric, 2) as avg_stars,
-  count(*) as count
-from public.ratings
-group by seller_id;
-
--- --------------------------------------------------------
--- 7. RPC: bump_views
--- --------------------------------------------------------
-create or replace function public.bump_views(p_id bigint)
-returns void
-language plpgsql
-as $$
-begin
-  update public.listings set views = views + 1 where id = p_id;
-end;
-$$;
-
--- --------------------------------------------------------
--- 8. Helper: is_admin() for RLS
--- --------------------------------------------------------
-create or replace function public.is_admin()
-returns boolean
-language plpgsql
-security definer
-as $$
-declare
-  user_email text;
-begin
-  select email into user_email from auth.users where id = auth.uid();
-  return exists (select 1 from public.admins where email = user_email);
-end;
-$$;
+create policy "messages_insert_participant_or_admin"
+  on public.messages for insert
+  with check (
+    auth.uid() = sender_id
+    and exists (
+      select 1 from public.conversations c
+      where c.id = conversation_id
+        and (
+          auth.uid() = c.buyer_id
+          or auth.uid() = c.seller_id
+          or (c.is_support and public.is_admin())
+        )
+    )
+  );
 
 -- --------------------------------------------------------
--- 9. RLS Policies
+-- 4. Realtime
 -- --------------------------------------------------------
-
--- Enable RLS on all tables
-
--- Profiles: select anyone, update own row
-alter table public.profiles enable row level security;
-
-create policy "profiles_select_all"
-  on public.profiles for select
-  using (true);
-
-create policy "profiles_update_own"
-  on public.profiles for update
-  using (auth.uid() = id);
-
--- Listings: select active OR own rows; insert/update/delete own rows only
-alter table public.listings enable row level security;
-
-create policy "listings_select_active_or_own"
-  on public.listings for select
-  using (status = 'active' or auth.uid() = seller_id);
-
-create policy "listings_insert_own"
-  on public.listings for insert
-  with check (auth.uid() = seller_id);
-
-create policy "listings_update_own"
-  on public.listings for update
-  using (auth.uid() = seller_id or is_admin());
-
-create policy "listings_delete_own_or_admin"
-  on public.listings for delete
-  using (auth.uid() = seller_id or is_admin());
-
--- Ratings: select anyone; insert only own rating, cannot rate self
-alter table public.ratings enable row level security;
-
-create policy "ratings_select_all"
-  on public.ratings for select
-  using (true);
-
-create policy "ratings_insert_own"
-  on public.ratings for insert
-  with check (auth.uid() = rater_id and auth.uid() <> seller_id);
-
-create policy "ratings_update_own"
-  on public.ratings for update
-  using (auth.uid() = rater_id);
-
--- Site Settings: select anyone; update admin only
-alter table public.site_settings enable row level security;
-
-create policy "site_settings_select_all"
-  on public.site_settings for select
-  using (true);
-
-create policy "site_settings_update_admin"
-  on public.site_settings for update
-  using (is_admin());
-
--- Admins: select for authenticated users (used by is_admin function internally)
--- Not directly exposed via client; read through is_admin()
-alter table public.admins enable row level security;
-
-create policy "admins_select_admin"
-  on public.admins for select
-  using (is_admin());
-
--- --------------------------------------------------------
--- 10. Storage Bucket: listing-photos
--- --------------------------------------------------------
-
--- Create the bucket (public) via Supabase dashboard or Storage API
--- After creating, set these policies on storage.objects:
-
--- Bucket policy: listing-photos (public read)
--- Note: Create bucket "listing-photos" as public in Supabase Storage UI
--- Then apply these object-level policies:
-
--- Policy: Anyone can read photos
--- create policy "listing_photos_select"
---   on storage.objects for select
---   using (bucket_id = 'listing-photos');
-
--- Policy: Authenticated users can upload
--- create policy "listing_photos_insert"
---   on storage.objects for insert
---   with check (bucket_id = 'listing-photos' and auth.role() = 'authenticated');
-
--- Policy: Authenticated users can delete their own uploads
--- create policy "listing_photos_delete"
---   on storage.objects for delete
---   using (bucket_id = 'listing-photos' and auth.uid() = owner);
-
--- Assumption: Storage bucket created via Supabase Dashboard
--- or using storage.create_bucket() API call with { public: true }
--- The seed script and app code reference this bucket.
+-- Required for subscribeToMessages() in lib/api.js to receive
+-- live INSERT events. If this statement errors ("already a
+-- member" or permission denied), instead enable it manually:
+-- Supabase Dashboard -> Database -> Replication -> supabase_realtime
+-- -> toggle "messages" table on.
+alter publication supabase_realtime add table public.messages;
